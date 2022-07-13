@@ -39,6 +39,10 @@ pub enum AssetIoError {
     /// Failed to watch path.
     #[error("failed to watch path: {0}")]
     PathWatchError(PathBuf),
+
+    /// Error downloading from a http URL.
+    #[error("failed to download asset: {0}")]
+    HttpError(String),
 }
 
 /// A storage provider for an [`AssetServer`].

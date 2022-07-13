@@ -30,6 +30,10 @@ pub struct FileAssetIo {
     filesystem_watcher: Arc<RwLock<Option<FilesystemWatcher>>>,
 }
 
+fn is_http(path: &Path) -> bool {
+    path.starts_with("http://") || path.starts_with("https://")
+}
+
 impl FileAssetIo {
     /// Creates a new `FileAssetIo` at a path relative to the executable's directory, optionally
     /// watching for changes.
@@ -87,6 +91,16 @@ impl FileAssetIo {
 impl AssetIo for FileAssetIo {
     fn load_path<'a>(&'a self, path: &'a Path) -> BoxedFuture<'a, Result<Vec<u8>, AssetIoError>> {
         Box::pin(async move {
+            if is_http(path) {
+                let uri = path.to_str().unwrap();
+                return surf::get(uri)
+                    .await
+                    .map_err(|e| AssetIoError::HttpError(e.to_string()))?
+                    .body_bytes()
+                    .await
+                    .map_err(|e| AssetIoError::HttpError(e.to_string()))
+            }
+
             let mut bytes = Vec::new();
             let full_path = self.root_path.join(path);
             match File::open(&full_path) {
