@@ -63,16 +63,13 @@ impl Node for MainPass3dNode {
                 } // No window
             };
 
-        // Always run opaque pass to ensure screen is cleared
         {
-            // Run the opaque pass, sorted front-to-back
+            // Run the clear pass
             // NOTE: Scoped to drop the mutable borrow of render_context
             #[cfg(feature = "trace")]
-            let _main_opaque_pass_3d_span = info_span!("main_opaque_pass_3d").entered();
+            let _main_clear_pass_3d_span = info_span!("main_clear_pass_3d").entered();
             let pass_descriptor = RenderPassDescriptor {
-                label: Some("main_opaque_pass_3d"),
-                // NOTE: The opaque pass loads the color
-                // buffer as well as writing to it.
+                label: Some("main_clear_pass_3d"),
                 color_attachments: &[Some(target.get_color_attachment(Operations {
                     load: match camera_3d.clear_color {
                         ClearColorConfig::Default => {
@@ -89,6 +86,34 @@ impl Node for MainPass3dNode {
                     depth_ops: Some(Operations {
                         // NOTE: 0.0 is the far plane due to bevy's use of reverse-z projections.
                         load: camera_3d.depth_load_op.clone().into(),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
+            };
+            let render_pass = render_context
+                .command_encoder
+                .begin_render_pass(&pass_descriptor);
+        }
+
+        if !opaque_phase.items.is_empty() {
+            // Run the opaque pass, sorted front-to-back
+            // NOTE: Scoped to drop the mutable borrow of render_context
+            #[cfg(feature = "trace")]
+            let _main_opaque_pass_3d_span = info_span!("main_opaque_pass_3d").entered();
+            let pass_descriptor = RenderPassDescriptor {
+                label: Some("main_opaque_pass_3d"),
+                // NOTE: The opaque pass loads the color
+                // buffer as well as writing to it.
+                color_attachments: &[Some(target.get_color_attachment(Operations {
+                    load: LoadOp::Load,
+                    store: true,
+                }))],
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
+                    view: &depth.view,
+                    // NOTE: The opaque main pass loads the depth buffer and possibly overwrites it
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Load,
                         store: true,
                     }),
                     stencil_ops: None,
