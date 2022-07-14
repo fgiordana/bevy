@@ -91,7 +91,7 @@ impl Node for MainPass3dNode {
                     stencil_ops: None,
                 }),
             };
-            let render_pass = render_context
+            let _render_pass = render_context
                 .command_encoder
                 .begin_render_pass(&pass_descriptor);
         }
